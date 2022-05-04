@@ -284,7 +284,6 @@ public class MultipartMap extends HashMap<String, Object> {
             OutputStream output = null;
             try {
                 input = new BufferedInputStream(part.getInputStream(), DEFAULT_BUFFER_SIZE);
-                System.out.println(input.available());
                 output = new BufferedOutputStream(new FileOutputStream(file), DEFAULT_BUFFER_SIZE);
                 byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
                 for (int length = 0; ((length = input.read(buffer)) > 0);) {

@@ -47,11 +47,14 @@ public class FilterService extends HttpServlet{
     
     private Map<String, List<CV>> res;
     
+    private boolean enableNotification;
+    
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         MultipartMap map;
         try {
             map = new MultipartMap(req, this);
+            enableNotification = map.containsKey("enable_notification");
             
             //step 1
             initCVFromInput(map);
@@ -166,13 +169,19 @@ public class FilterService extends HttpServlet{
             if(cv.numberOfMatchedCriteria > 0) {
                 cv.matchPercent = (float)cv.numberOfMatchedCriteria / criterias.size();
                 suitable.add(cv);
-            } else unsuitable.add(cv);
+            } else {
+                unsuitable.add(cv);
+                if(enableNotification) sendNotiToCV(cv);
+            }
         }
         
         res.put("suitableList", suitable);
         res.put("unsuitableList", suitable);
     }
     
+    private void sendNotiToCV(CV cv) {
+
+    }
     /**
      * step 8
      * sap xep

@@ -42,7 +42,6 @@ public class CV extends HttpServlet{
         if(storage == null) {
             storage = new HashMap<>();
         }
-        System.out.println("init");
     }
     
     @Override
@@ -79,7 +78,6 @@ public class CV extends HttpServlet{
                     break;
             }
             
-            System.out.println(storage);
             sendMessageToClient("Add success", resp);
         } catch (IOException ex) {
             ex.printStackTrace();
