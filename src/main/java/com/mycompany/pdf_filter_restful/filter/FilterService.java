@@ -29,6 +29,7 @@ import org.apache.http.entity.ContentType;
 import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 /**
@@ -72,7 +73,13 @@ public class FilterService extends HttpServlet{
             returnResutlt(resp);
             
             cleanResource();
-        } catch(Exception e) {
+        } 
+//        catch (NullPointerException | NumberFormatException ex) {
+//            ex.printStackTrace();
+//            sendResponseMessage(resp, "Internal Server Error - 500");
+//        }
+        catch(Exception e) {
+            sendResponseMessage(resp, "Bad request - 400");
             e.printStackTrace();
         }
     }
@@ -81,7 +88,7 @@ public class FilterService extends HttpServlet{
      * step 1
      * Khoi tao cv tu dau vao
      */
-    private void initCVFromInput(MultipartMap map) throws Exception{
+    private void initCVFromInput(MultipartMap map) throws NullPointerException {
         cvs = new ArrayList<>();
         res = new HashMap<>();
         
@@ -96,8 +103,10 @@ public class FilterService extends HttpServlet{
      * step 2
      * Khoi tao tieu chi 
      */
-    private void initCriteria(MultipartMap map) {
+    private void initCriteria(MultipartMap map) throws NullPointerException, JSONException {
         criteria = map.getParameter("criteria");
+        if(criteria == null) throw new NullPointerException();
+        
         criterias = new JSONObject(criteria).getJSONArray("data").toList().stream().map((data) -> {
             return data.toString();
         }).toList();
@@ -203,6 +212,15 @@ public class FilterService extends HttpServlet{
         try (PrintWriter writer = new PrintWriter(resp.getOutputStream())) {
             // Now do your thing with the obtained input.
             writer.write(new Gson().toJson(res));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    private void sendResponseMessage(HttpServletResponse resp, String message) {
+        try (PrintWriter writer = new PrintWriter(resp.getOutputStream())) {
+            // Now do your thing with the obtained input.
+            writer.write(message);
         } catch (Exception e) {
             e.printStackTrace();
         }
