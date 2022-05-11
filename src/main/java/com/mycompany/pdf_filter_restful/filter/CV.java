@@ -20,6 +20,7 @@ public class CV {
     public transient List<String> listCriteria;
     public transient String content;
     public float matchPercent = 0f;
+    public transient String email;
     
     public CV(File file) {
         this.file = file;

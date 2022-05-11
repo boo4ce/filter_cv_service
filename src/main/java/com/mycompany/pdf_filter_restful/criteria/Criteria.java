@@ -27,7 +27,7 @@ import org.json.JSONObject;
  *
  * @author Admin
  */
-@WebServlet(name = "Criteria", urlPatterns = {"/Criteria"})
+@WebServlet(name = "Criteria", urlPatterns = {"/criteria/findamountmatched"})
 @MultipartConfig
 public class Criteria extends HttpServlet {
 
@@ -36,7 +36,7 @@ public class Criteria extends HttpServlet {
         MultipartMap map;
         try {
             map = new MultipartMap(req, this);
-            String content = map.getParameter("content");
+            String content = map.getParameter("text");
             String listCriteria = map.getParameter("criteria");
             
             JSONObject criteria = new JSONObject(listCriteria);

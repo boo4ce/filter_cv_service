@@ -9,6 +9,8 @@ import com.mycompany.pdf_filter_restful.MultipartMap;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,6 +23,7 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import org.apache.http.ParseException;
 import org.apache.pdfbox.cos.COSDocument;
 import org.apache.pdfbox.io.RandomAccessRead;
 import org.apache.pdfbox.pdfparser.PDFParser;
@@ -36,12 +39,18 @@ import org.json.JSONObject;
 @MultipartConfig
 public class CV extends HttpServlet{
     private static HashMap<Integer, CVPack> storage;
-
+    private static HashMap<Integer, String> db;
+    
     @Override
     public void init() throws ServletException {
         if(storage == null) {
             storage = new HashMap<>();
         }
+        
+        if(db == null) {
+            db = new HashMap<>();
+        }
+        
     }
     
     @Override
@@ -52,11 +61,7 @@ public class CV extends HttpServlet{
             JSONObject json = new JSONObject(map.getParameter("fileName"));
             List<Object> fileNames = json.getJSONArray("fileNames").toList();
 
-            String url = req.getRequestURL().toString();
-            String baseUrl = getBaseUrl(req) + req.getServletPath();
-            
-            String dicPath = url.substring(baseUrl.length() + 1);
-            String[] params = dicPath.split("/");
+            String[] params = getParams(req);
             
             Integer id = Integer.parseInt(params[1]);
             CVPack pack = storage.get(id);
@@ -75,6 +80,8 @@ public class CV extends HttpServlet{
                     for(Object fileName : fileNames) {
                         pack.unsuitableCV.add((String)fileName);
                     }
+                case "gettextscan":
+                    
                     break;
             }
             
@@ -85,47 +92,88 @@ public class CV extends HttpServlet{
     }
     
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException {
         try {
-            String url = req.getRequestURL().toString();
-            String baseUrl = getBaseUrl(req) + req.getServletPath();
+            String[] params = getParams(req);
+            Integer id = Integer.parseInt(params[1]);
             
-            String dicPath = url.substring(baseUrl.length() + 1);
-            String[] params = dicPath.split("/");
-            
-            CVPack pack = storage.get(Integer.parseInt(params[1]));
-            
-            if(pack == null) {
-                sendMessageToClient("Empty list", resp);
+            String filePath = db.get(id);
+            if(filePath == null) {
+                resp.setStatus(400);
+                return;
+            }
+
+            File file = new File(filePath);
+            if(!file.exists()) {
+                resp.setStatus(500);
                 return;
             }
             
-            HashMap<String, List<String>> resposeData = new HashMap<>();
-            
+            resp.setContentType("application/json");
+
             switch(params[0]) {
-                case "suitable":
-                    resposeData.put("fileNames", pack.suitableCV);
+                case "gettextscan":
+                    JSONObject respJson = new JSONObject();
+                    respJson.put("content", convertPDFtoText(file));
+                    respJson.put("status", "convert success");
+
+                    sendMessageToClient(respJson.toString(), resp);
                     break;
-                case "unsuitable":
-                    resposeData.put("fileNames", pack.unsuitableCV);
+                case "downloadfile":
+                    resp.setHeader("Content-disposition", "attachment; filename=" + file.getName());
+                    
+                    try(InputStream in = new FileInputStream(file);
+                            OutputStream out = resp.getOutputStream()) {
+                        
+                        byte[] buffer = new byte[1024];
+                        
+                        int numBytesRead;
+                        while ((numBytesRead = in.read(buffer)) > 0) {
+                            out.write(buffer, 0, numBytesRead);
+                        }
+                    }
+                    break;
+                case "metadata":
+                    String[] words = convertPDFtoText(file).split("[ \n]");
+                    Metadata metadata = new Metadata();
+                    for(String s : words) {
+                        if(s.matches(".+@gmail.com")) {
+                            metadata.email = s;
+                            break;
+                        }
+                    }
+                    
+                    sendMessageToClient(new Gson().toJson(metadata), resp);
+                default:
+                    resp.setStatus(415);
                     break;
             }
-            
-            sendMessageToClient(new JSONObject(resposeData).toString(), resp);
-        } catch (Exception ex) {
-            ex.printStackTrace();
+        } catch (NumberFormatException | IndexOutOfBoundsException ex) {
+            resp.setStatus(400);
+        } catch (IOException ex) {
+            resp.setStatus(500);
         }
     }
     
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException {
-        MultipartMap map;
         try {
-            map = new MultipartMap(req, this);
-            File file = map.getFile("attachment");
-            
-            // Now do your thing with the obtained input.
-            sendMessageToClient(convertPDFtoText(file), resp);
+            String[] params = getParams(req);
+            switch(params[0]) {
+                case "uploadfile":
+                    MultipartMap map = new MultipartMap(req, this);
+                    File file = map.getFile("file_upload");
+
+                    Integer id = db.size();
+                    db.put(db.size(), file.getAbsolutePath());
+
+                    resp.setStatus(200);
+                    JSONObject respJson = new JSONObject();
+                    respJson.put("id", id);
+                    respJson.put("status", "upload success");
+
+                    sendMessageToClient(respJson.toString(), resp);
+            }
         } catch (IOException ex) {
             ex.printStackTrace();
         }
@@ -165,6 +213,14 @@ public class CV extends HttpServlet{
 
         String baseUrl = scheme + "://" + host + ((("http".equals(scheme) && port == 80) || ("https".equals(scheme) && port == 443)) ? "" : ":" + port) + contextPath;
         return baseUrl;
+    }
+    
+    private String[] getParams(HttpServletRequest request) throws IndexOutOfBoundsException {
+        String url = request.getRequestURL().toString();
+        String baseUrl = getBaseUrl(request) + request.getServletPath();
+
+        String dicPath = url.substring(baseUrl.length() + 1);
+        return dicPath.split("/");
     }
     
     class CVPack {
