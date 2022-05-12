@@ -66,14 +66,9 @@ public class EmailSender extends HttpServlet {
                 } finally {
                     j++;
                 }
+                
+                if(i == j) sendMessageToClient("Send emails successfully " + failedAmount, resp);
             });
-        }
-        
-        while(true) {
-            if(j == i) {
-                sendMessageToClient("Send emails successfully " + failedAmount, resp);
-                break;
-            }
         }
         
         sendMessageToClient("Emails are sending", resp);
