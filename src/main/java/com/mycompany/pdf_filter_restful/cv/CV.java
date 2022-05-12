@@ -134,9 +134,9 @@ public class CV extends HttpServlet{
                     }
                     break;
                 case "metadata":
-                    String[] words = convertPDFtoText(file).split("[ \n]");
+                    String[] words = convertPDFtoText(file).split("[ \n\r]");
                     Metadata metadata = new Metadata();
-                    for(String s : words) {
+                    for(String s : words) { 
                         if(s.matches(".+@gmail.com")) {
                             metadata.email = s;
                             break;
