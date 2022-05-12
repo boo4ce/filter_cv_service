@@ -12,12 +12,17 @@ import java.io.PrintWriter;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.mail.Authenticator;
 import javax.mail.Message;
 import javax.mail.MessagingException;
 import javax.mail.PasswordAuthentication;
 import javax.mail.Session;
 import javax.mail.Transport;
+import javax.mail.internet.AddressException;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 import javax.servlet.ServletException;
@@ -34,7 +39,15 @@ import org.json.JSONObject;
  */
 @WebServlet(name = "EmailSender", urlPatterns = {"/emailsender/send"})
 public class EmailSender extends HttpServlet {
+    private ExecutorService service;
 
+    @Override
+    public void init() throws ServletException {
+        service = Executors.newCachedThreadPool();
+    }
+    
+    int j = 0;
+    int failedAmount = 0;
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         JSONArray reqData = new JSONArray(getBody(req));
@@ -42,13 +55,32 @@ public class EmailSender extends HttpServlet {
             return new JSONObject((Map)data);
         }).toList();
         
+        int i = list.size();
+        j = 0;
         for(JSONObject obj :list) {
-            sendEmail(obj.getString("email"), obj.getString("textSend"));
+            service.execute(() -> {
+                try {
+                    sendEmail(obj.getString("email"), obj.getString("textSend"));
+                } catch (MessagingException ex) {
+                    failedAmount++;
+                } finally {
+                    j++;
+                }
+            });
         }
+        
+        while(true) {
+            if(j == i) {
+                sendMessageToClient("Send emails successfully " + failedAmount, resp);
+                break;
+            }
+        }
+        
+        sendMessageToClient("Emails are sending", resp);
     }
     
     
-    public void sendEmail(String to, String content) {
+    public void sendEmail(String to, String content) throws AddressException, MessagingException {
         System.out.println("send");
         // Setup mail server
         Properties props = new Properties();
@@ -71,23 +103,19 @@ public class EmailSender extends HttpServlet {
 
         Session session = Session.getInstance(props, authenticator);
         
-        try {
-           // Create a default MimeMessage object.
-           MimeMessage message = new MimeMessage(session);
+        // Create a default MimeMessage object.
+        MimeMessage message = new MimeMessage(session);
 
-           // Set To: header field of the header.
-           message.setRecipients(Message.RecipientType.TO,InternetAddress.parse(to));
+        // Set To: header field of the header.
+        message.setRecipients(Message.RecipientType.TO,InternetAddress.parse(to));
 
-           // Create the message part 
-           message.setSubject("Testing Subject");
-           message.setText(content);
+        // Create the message part 
+        message.setSubject("Testing Subject");
+        message.setText(content);
 
-           // send message
-           Transport.send(message);
-           System.out.println("Sent message successfully....");
-        } catch (MessagingException mex) {
-           mex.printStackTrace();
-        }
+        // send message
+        Transport.send(message);
+           
     }
     
     public String getBody(HttpServletRequest request) {

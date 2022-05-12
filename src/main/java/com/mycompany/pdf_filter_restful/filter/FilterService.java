@@ -216,35 +216,30 @@ public class FilterService extends HttpServlet{
     }
     
     private void sendNotiToCV(List<CV> cvs) {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                JSONArray raw = new JSONArray();
-                Map<String, String> emailElement = new HashMap<>();
+        JSONArray raw = new JSONArray();
+        Map<String, String> emailElement = new HashMap<>();
 
-                String textSend = "Ban khong phu hop voi cong ty chung toi";
+        String textSend = "Ban khong phu hop voi cong ty chung toi";
 
-                int i = 0;
-                for(CV cv : cvs) {
-                    if(cv.email != null) {
-                        emailElement.put("email", cv.email);
-                        emailElement.put("textSend", textSend);
+        int i = 0;
+        for(CV cv : cvs) {
+            if(cv.email != null) {
+                emailElement.put("email", cv.email);
+                emailElement.put("textSend", textSend);
 
-                        raw.put(i++, emailElement);
-                    }
-                }
-
-                try {
-                    CloseableHttpClient httpClient = HttpClients.createDefault();
-                    HttpPost post = new HttpPost(emailEndPoint + "/send");
-                    post.setEntity(new StringEntity(raw.toString()));
-                    CloseableHttpResponse response = httpClient.execute(post);
-
-                } catch (Exception ex) {
-                    Logger.getLogger(FilterService.class.getName()).log(Level.SEVERE, null, ex);
-                }
+                raw.put(i++, emailElement);
             }
-        }).start();
+        }
+
+        try {
+            CloseableHttpClient httpClient = HttpClients.createDefault();
+            HttpPost post = new HttpPost(emailEndPoint + "/send");
+            post.setEntity(new StringEntity(raw.toString()));
+            CloseableHttpResponse response = httpClient.execute(post);
+
+        } catch (Exception ex) {
+            Logger.getLogger(FilterService.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
     /**
      * step 8
